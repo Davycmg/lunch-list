@@ -128,37 +128,39 @@
 
   .rows{
     display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(84px, 1fr));
+    grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));
     column-gap:10px;
-    row-gap:2px;
+    row-gap:4px;
   }
   .row{
     display:flex;
-    align-items:center;
+    align-items:flex-start;
     gap:3px;
     padding:4px 0;
     min-width:0;
   }
   .row .name{
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
     font-weight:500;
     font-size:14px;
+    line-height:1.3;
     font-family:'Noto Sans TC', sans-serif;
-    border:none;
-    background:transparent;
     color:var(--ink);
     padding:0;
     width:100%;
     min-width:0;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    word-break:break-word;
     border-bottom:1px dotted transparent;
+    outline:none;
     pointer-events:none;
   }
   body.editmode .row .name{
     pointer-events:auto;
+    cursor:text;
     border-bottom-color:var(--line);
   }
+  .row .rm{ margin-top:1px; }
   .row.absent .name{ color:var(--grey); text-decoration:line-through; text-decoration-color:var(--line); }
   .row.fixed .name{ color:var(--grey); font-style:italic; }
   .row .rm{
@@ -240,45 +242,42 @@
   }
 
   .lockbar{
-    max-width:460px;
-    width:100%;
-    margin:0 auto 12px;
+    margin-top:12px;
+    padding-top:10px;
+    border-top:1px dashed var(--line);
     display:flex;
-    justify-content:flex-end;
-    gap:6px;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    flex-wrap:wrap;
   }
   .lockbar button, .lockbar input{
     font-family:'IBM Plex Mono', monospace;
-    font-size:12px;
-    padding:6px 10px;
+    font-size:11px;
+    padding:4px 9px;
     border-radius:5px;
     border:1px solid var(--line);
     background:var(--paper);
-    color:var(--ink);
+    color:var(--ink-soft);
     cursor:pointer;
   }
-  .lockbar .pinbox{ display:none; gap:6px; }
+  .lockbar .togglebtn{ background:none; border-color:transparent; }
+  .lockbar .pinbox{ display:none; gap:6px; align-items:center; }
   .lockbar.pending .pinbox{ display:flex; }
   .lockbar.pending .togglebtn{ display:none; }
-  .lockbar input[type="password"]{ width:90px; cursor:text; }
+  .lockbar input[type="password"]{ width:70px; cursor:text; }
   .status-msg{
-    max-width:460px; margin:0 auto 8px; text-align:right;
-    font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;
-    min-height:14px;
+    width:100%;
+    text-align:center;
+    font-size:10.5px;
+    color:var(--ink-soft);
+    font-family:'IBM Plex Mono', monospace;
+    min-height:0;
   }
+  body.editmode .lockbar .togglebtn{ color:var(--green); }
 </style>
 </head>
 <body>
-
-<div class="lockbar" id="lockbar">
-  <span class="status-msg" id="pinMsg" style="min-height:auto;margin:0;align-self:center;"></span>
-  <button class="togglebtn" id="toggleEditBtn">🔒 檢視模式（點此編輯）</button>
-  <div class="pinbox">
-    <input type="password" id="pinInput" placeholder="輸入密碼" inputmode="numeric">
-    <button id="pinSubmit">解鎖</button>
-    <button id="pinCancel">取消</button>
-  </div>
-</div>
 
 <div class="ticket" id="ticket">
   <div class="head">
@@ -294,6 +293,16 @@
   </div>
 
   <div class="timestamp" id="lastUpdate">載入中…</div>
+
+  <div class="lockbar" id="lockbar">
+    <button class="togglebtn" id="toggleEditBtn">🔒 編輯</button>
+    <div class="pinbox">
+      <input type="password" id="pinInput" placeholder="密碼" inputmode="numeric">
+      <button id="pinSubmit">解鎖</button>
+      <button id="pinCancel">✕</button>
+    </div>
+    <span class="status-msg" id="pinMsg"></span>
+  </div>
 </div>
 
 <script>
@@ -391,18 +400,21 @@ function buildRow(gu){
   const row = document.createElement('div');
   row.className = 'row';
   row.innerHTML = `
-    <input type="text" class="name" spellcheck="false">
+    <div class="name" contenteditable="true" spellcheck="false"></div>
     <button class="rm" title="刪除">✕</button>
   `;
-  const nameInput = row.querySelector('.name');
-  nameInput.value = gu.name;
-  nameInput.addEventListener('change', async () => {
-    const newName = nameInput.value.trim();
-    if(!newName){ nameInput.value = gu.name; return; }
+  const nameEl = row.querySelector('.name');
+  nameEl.textContent = gu.name;
+  nameEl.addEventListener('blur', async () => {
+    const newName = nameEl.textContent.trim();
+    if(!newName){ nameEl.textContent = gu.name; return; }
+    if(newName === gu.name) return;
     gu.name = newName;
     await saveData();
   });
-  nameInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') nameInput.blur(); });
+  nameEl.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); nameEl.blur(); }
+  });
   row.querySelector('.rm').addEventListener('click', async () => {
     data.guests = data.guests.filter(x => x.id !== gu.id);
     await saveData();
@@ -432,7 +444,7 @@ function tryUnlock(){
     editing = true;
     document.body.classList.add('editmode');
     lockbar.classList.remove('pending');
-    document.getElementById('toggleEditBtn').textContent = '🔓 編輯模式（點此鎖定）';
+    document.getElementById('toggleEditBtn').textContent = '🔓 鎖定';
     setPinMsg('已解鎖，可編輯');
     stopAutoRefresh();
   } else {
@@ -444,7 +456,7 @@ document.getElementById('toggleEditBtn').addEventListener('click', function relo
   if(editing){
     editing = false;
     document.body.classList.remove('editmode');
-    this.textContent = '🔒 檢視模式（點此編輯）';
+    this.textContent = '🔒 編輯';
     setPinMsg('已鎖定');
     startAutoRefresh();
   }
