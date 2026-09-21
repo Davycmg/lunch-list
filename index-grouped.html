@@ -121,13 +121,17 @@
   body.editmode .dragtip{ display:block; }
 
   .tree{
-    display:flex;
-    flex-direction:column;
-    gap:2px;
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));
+    column-gap:10px;
+    row-gap:4px;
+    align-items:start;
   }
+  body.editmode .tree{ grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); }
+  .node{ min-width:0; }
   .children{
-    margin-left:19px;
-    padding-left:11px;
+    margin-left:9px;
+    padding-left:7px;
     border-left:1px dashed var(--line);
     display:flex;
     flex-direction:column;
@@ -138,8 +142,9 @@
 
   .row{
     display:flex;
-    align-items:center;
-    gap:4px;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:2px 3px;
     padding:4px 2px;
     min-width:0;
     border-radius:4px;
