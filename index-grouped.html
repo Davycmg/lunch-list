@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>午餐會來賓名單（可拖拉分組）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBF8EF;
+    --desk:#E7E2D3;
+    --ink:#2C2A22;
+    --ink-soft:#6B6656;
+    --line:#CFC8AE;
+    --green:#4C7A5E;
+    --green-bg:#E7EFE7;
+    --amber:#B4812C;
+    --amber-bg:#F5ECD9;
+    --red:#AA3A2E;
+    --grey:#928C77;
+    --grey-bg:#EDEAE0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--desk);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0);
+    background-size:14px 14px;
+    font-family:'Noto Sans TC', sans-serif;
+    color:var(--ink);
+    padding:28px 12px 60px;
+    display:flex;
+    justify-content:center;
+  }
+  .ticket{
+    position:relative;
+    width:100%;
+    max-width:460px;
+    background:var(--paper);
+    box-shadow:0 12px 28px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
+    padding:26px 22px 30px;
+  }
+  .ticket::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; bottom:-11px; height:11px;
+    background:
+      linear-gradient(-45deg, var(--paper) 8px, transparent 0) 0 0/16px 16px repeat-x,
+      linear-gradient(45deg, var(--paper) 8px, transparent 0) 0 0/16px 16px repeat-x;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .head{
+    text-align:center;
+    padding-bottom:14px;
+    border-bottom:1px dashed var(--line);
+  }
+  .head .kicker{
+    font-size:11px;
+    letter-spacing:3px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .head h1{
+    font-size:20px;
+    margin:0 0 8px;
+    font-weight:700;
+    letter-spacing:1px;
+  }
+  .head .date-row{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .head .date-row input{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    border:none;
+    background:transparent;
+    color:var(--ink);
+    text-align:center;
+    width:110px;
+    border-bottom:1px dotted transparent;
+  }
+  .head .date-row input:disabled{ pointer-events:none; }
+  body.editmode .head .date-row input{ border-bottom-color:var(--line); }
+
+  .section{ padding-top:16px; }
+  .section-title{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:2px;
+    margin-bottom:8px;
+  }
+  .dot{ width:8px; height:8px; border-radius:50%; flex:none; background:var(--green); }
+  .section-title .count{
+    margin-left:auto;
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--ink-soft);
+  }
+
+  .dragtip{
+    display:none;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    background:var(--amber-bg);
+    border:1px dashed var(--amber);
+    border-radius:5px;
+    padding:6px 8px;
+    margin-bottom:10px;
+    line-height:1.5;
+  }
+  body.editmode .dragtip{ display:block; }
+
+  .tree{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .children{
+    margin-left:19px;
+    padding-left:11px;
+    border-left:1px dashed var(--line);
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    margin-top:2px;
+  }
+  .children.collapsed{ display:none; }
+
+  .row{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 2px;
+    min-width:0;
+    border-radius:4px;
+    transition:background .12s ease;
+  }
+  .row.drop-target{
+    background:var(--green-bg);
+    outline:1px dashed var(--green);
+  }
+  .row .handle{
+    display:none;
+    flex:none;
+    cursor:grab;
+    color:var(--ink-soft);
+    font-size:14px;
+    line-height:1;
+    padding:2px 3px;
+    touch-action:none;
+    user-select:none;
+  }
+  body.editmode .row .handle{ display:inline-block; }
+  .row .handle:active{ cursor:grabbing; }
+
+  .row .expand{
+    flex:none;
+    border:none;
+    background:none;
+    color:var(--ink-soft);
+    font-size:10px;
+    width:14px;
+    padding:0;
+    cursor:pointer;
+  }
+
+  .row .name{
+    font-weight:500;
+    font-size:14px;
+    line-height:1.3;
+    font-family:'Noto Sans TC', sans-serif;
+    color:var(--ink);
+    padding:2px 0;
+    flex:1 1 auto;
+    min-width:0;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+    border-bottom:1px dotted transparent;
+    outline:none;
+    pointer-events:none;
+  }
+  body.editmode .row .name{
+    pointer-events:auto;
+    cursor:text;
+    border-bottom-color:var(--line);
+  }
+
+  .row .childcount{
+    flex:none;
+    font-size:10px;
+    color:var(--ink-soft);
+  }
+
+  .row .unnest, .row .rm{
+    display:none;
+    flex:none;
+    border:none; background:none;
+    font-size:13px; cursor:pointer; padding:0 3px; line-height:1;
+  }
+  .row .unnest{ color:var(--amber); }
+  .row .rm{ color:var(--red); }
+  body.editmode .row .unnest, body.editmode .row .rm{ display:inline-block; }
+
+  .drag-ghost{
+    position:fixed;
+    z-index:999;
+    pointer-events:none;
+    background:var(--ink);
+    color:var(--paper);
+    font-size:12px;
+    padding:4px 9px;
+    border-radius:5px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.25);
+    white-space:nowrap;
+  }
+
+  .empty-hint{ font-size:12.5px; color:var(--ink-soft); padding:4px 0 2px; }
+
+  .timestamp{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--ink-soft);
+    margin-top:6px;
+    letter-spacing:1px;
+  }
+
+  .addform{
+    display:none;
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px dashed var(--line);
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  body.editmode .addform{ display:flex; }
+  .addform input, .addform select{
+    font-family:'Noto Sans TC', sans-serif;
+    font-size:13px;
+    padding:6px 8px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .addform input[name="name"]{ flex:1 1 90px; }
+  .addform button{
+    flex:1 1 100%;
+    padding:8px;
+    border:none;
+    border-radius:4px;
+    background:var(--ink);
+    color:var(--paper);
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+    letter-spacing:1px;
+  }
+
+  .lockbar{
+    margin-top:12px;
+    padding-top:10px;
+    border-top:1px dashed var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .lockbar button, .lockbar input{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    padding:4px 9px;
+    border-radius:5px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .lockbar .togglebtn{ background:none; border-color:transparent; }
+  .lockbar .pinbox{ display:none; gap:6px; align-items:center; }
+  .lockbar.pending .pinbox{ display:flex; }
+  .lockbar.pending .togglebtn{ display:none; }
+  .lockbar input[type="password"]{ width:70px; cursor:text; }
+  .status-msg{
+    width:100%;
+    text-align:center;
+    font-size:10.5px;
+    color:var(--ink-soft);
+    font-family:'IBM Plex Mono', monospace;
+    min-height:0;
+  }
+  body.editmode .lockbar .togglebtn{ color:var(--green); }
+</style>
+</head>
+<body>
+
+<div class="ticket" id="ticket">
+  <div class="head">
+    <div class="kicker">LUNCH GUEST LIST</div>
+    <h1 id="eventTitle">午餐會來賓名單</h1>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="addform" id="addForm">
+    <input type="text" name="name" placeholder="姓名" required>
+    <button id="addBtn">＋ 新增來賓</button>
+  </div>
+
+  <div class="timestamp" id="lastUpdate">載入中…</div>
+
+  <div class="lockbar" id="lockbar">
+    <button class="togglebtn" id="toggleEditBtn">🔒 編輯</button>
+    <div class="pinbox">
+      <input type="password" id="pinInput" placeholder="密碼" inputmode="numeric">
+      <button id="pinSubmit">解鎖</button>
+      <button id="pinCancel">✕</button>
+    </div>
+    <span class="status-msg" id="pinMsg"></span>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyHbArS5WkaOLThay9qqJwJkOJpesp9cIUbmP2ScQFjO6ATl3zoiSkDlY2xdqn1gJTOtA/exec';
+const EDIT_PIN = '0000';
+
+const SEED = {
+  eventTitle: '午餐會來賓名單',
+  eventDate: '6/18',
+  guests: [
+    '彥漢','秀華','雅雯','豪雷','銓興哥','林湛','吉昇','閔翔','政宏','大衛','張淑惠','鄭志明',
+    '美玲','冠禎','Cindy姐','佳頤',
+    '天維','關崇仁','莊敬','黎大哥','麗文8815','欣美姐','俊維','家銘','顏志龍',
+    '宗諺','懿恬','鴻華','守愚','世德','士斌','淑慧'
+  ].map(name => ({id:g(), name}))
+};
+
+function g(){ return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+let data = null;
+let editing = false;
+let refreshTimer = null;
+const collapsedIds = new Set();
+
+async function loadData(){
+  try{
+    const res = await fetch(API_URL, {method:'GET'});
+    const json = await res.json();
+    if(json && json.guests){
+      data = json;
+    } else if(!data){
+      data = SEED;
+      await saveData(false);
+    }
+  }catch(e){
+    if(!data){
+      data = SEED;
+    }
+    setPinMsg('⚠️ 讀取失敗，顯示暫存版本');
+  }
+  render();
+}
+
+async function saveData(bumpTimestamp = true){
+  if(bumpTimestamp) data.updatedAt = new Date().toISOString();
+  try{
+    await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify(data)
+    });
+  }catch(e){
+    setPinMsg('⚠️ 儲存失敗：' + (e && e.message ? e.message : '網路錯誤'));
+  }
+}
+
+function setPinMsg(msg){
+  document.getElementById('pinMsg').textContent = msg || '';
+}
+
+// ---------- tree helpers ----------
+function guests(){ return data.guests || []; }
+
+function childrenOf(id){
+  return guests().filter(g => g.parentId === id);
+}
+
+function roots(){
+  const list = guests();
+  return list.filter(g => !g.parentId || !list.some(x => x.id === g.parentId));
+}
+
+// true if `ancestorId` is `nodeId` itself or one of its ancestors
+function isSelfOrAncestor(nodeId, ancestorId){
+  let cur = guests().find(x => x.id === nodeId);
+  while(cur){
+    if(cur.id === ancestorId) return true;
+    cur = cur.parentId ? guests().find(x => x.id === cur.parentId) : null;
+  }
+  return false;
+}
+
+// would setting sourceId's parent to targetId create a cycle?
+function wouldCreateCycle(sourceId, targetId){
+  return isSelfOrAncestor(targetId, sourceId);
+}
+
+// ---------- render ----------
+function render(){
+  if(!data) return;
+  document.getElementById('eventTitle').textContent = data.eventTitle || '午餐會來賓名單';
+
+  const wrap = document.getElementById('sections');
+  wrap.innerHTML = '';
+
+  const sec = document.createElement('div');
+  sec.className = 'section';
+  sec.innerHTML = `
+    <div class="section-title">
+      <span class="dot"></span>
+      <span>來賓</span>
+      <span class="count mono">${guests().length} 人</span>
+    </div>
+    <div class="dragtip">💡 編輯模式下，按住名字左邊的「⠿」把它拖到另一個人名上，就能把它收進那個人底下；要取消，按子項目旁的「⬆」。</div>
+    <div class="tree" id="treeRoot"></div>
+  `;
+  const treeRoot = sec.querySelector('.tree');
+  const topLevel = roots();
+  if(topLevel.length === 0){
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = '（目前沒有人）';
+    treeRoot.appendChild(hint);
+  } else {
+    topLevel.forEach(gu => treeRoot.appendChild(buildNode(gu, 0)));
+  }
+  wrap.appendChild(sec);
+
+  const ts = data.updatedAt ? new Date(data.updatedAt) : null;
+  document.getElementById('lastUpdate').textContent = ts
+    ? '最後更新　' + ts.toLocaleString('zh-TW', {hour12:false})
+    : '尚未更新';
+}
+
+function buildNode(gu, depth){
+  const wrap = document.createElement('div');
+  wrap.className = 'node';
+
+  wrap.appendChild(buildRow(gu, depth));
+
+  const kids = childrenOf(gu.id);
+  if(kids.length){
+    const childWrap = document.createElement('div');
+    childWrap.className = 'children' + (collapsedIds.has(gu.id) ? ' collapsed' : '');
+    kids.forEach(k => childWrap.appendChild(buildNode(k, depth + 1)));
+    wrap.appendChild(childWrap);
+  }
+  return wrap;
+}
+
+function buildRow(gu, depth){
+  const kids = childrenOf(gu.id);
+  const hasKids = kids.length > 0;
+
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.dataset.id = gu.id;
+  row.innerHTML = `
+    <span class="handle">⠿</span>
+    <button class="expand" style="visibility:${hasKids ? 'visible' : 'hidden'}">${collapsedIds.has(gu.id) ? '▸' : '▾'}</button>
+    <div class="name" contenteditable="true" spellcheck="false"></div>
+    ${hasKids ? `<span class="childcount mono">(${kids.length})</span>` : ''}
+    ${gu.parentId ? '<button class="unnest" title="取消歸類為子項目">⬆</button>' : ''}
+    <button class="rm" title="刪除">✕</button>
+  `;
+
+  const nameEl = row.querySelector('.name');
+  nameEl.textContent = gu.name;
+  nameEl.addEventListener('blur', async () => {
+    const newName = nameEl.textContent.trim();
+    if(!newName){ nameEl.textContent = gu.name; return; }
+    if(newName === gu.name) return;
+    gu.name = newName;
+    await saveData();
+  });
+  nameEl.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); nameEl.blur(); }
+  });
+
+  row.querySelector('.rm').addEventListener('click', async () => {
+    // 刪除這個人時，把他的子項目升回上一層，避免資料整組消失
+    guests().forEach(x => { if(x.parentId === gu.id) x.parentId = gu.parentId || null; });
+    data.guests = guests().filter(x => x.id !== gu.id);
+    await saveData();
+    render();
+  });
+
+  const unnestBtn = row.querySelector('.unnest');
+  if(unnestBtn){
+    unnestBtn.addEventListener('click', async () => {
+      gu.parentId = null;
+      await saveData();
+      render();
+    });
+  }
+
+  if(hasKids){
+    row.querySelector('.expand').addEventListener('click', () => {
+      if(collapsedIds.has(gu.id)) collapsedIds.delete(gu.id);
+      else collapsedIds.add(gu.id);
+      render();
+    });
+  }
+
+  setupDragHandle(row.querySelector('.handle'), gu);
+
+  return row;
+}
+
+// ---------- drag & drop (pointer events: works with mouse + touch) ----------
+let dragState = null;
+
+function setupDragHandle(handle, gu){
+  handle.addEventListener('pointerdown', (e) => {
+    if(!editing) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+
+    const ghost = document.createElement('div');
+    ghost.className = 'drag-ghost';
+    ghost.textContent = gu.name;
+    document.body.appendChild(ghost);
+    positionGhost(ghost, e.clientX, e.clientY);
+
+    dragState = {
+      sourceId: gu.id,
+      ghost,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      targetId: null
+    };
+
+    const onMove = (ev) => {
+      if(!dragState || ev.pointerId !== dragState.pointerId) return;
+      positionGhost(dragState.ghost, ev.clientX, ev.clientY);
+      const dx = ev.clientX - dragState.startX, dy = ev.clientY - dragState.startY;
+      if(Math.hypot(dx, dy) > 6) dragState.moved = true;
+      if(dragState.moved) updateDropHighlight(ev.clientX, ev.clientY);
+    };
+    const onUp = (ev) => {
+      if(!dragState || ev.pointerId !== dragState.pointerId) return;
+      finishDrag();
+      cleanupListeners();
+    };
+    const onCancel = () => {
+      cleanupDrag();
+      cleanupListeners();
+    };
+    function cleanupListeners(){
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onCancel);
+    }
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onCancel);
+  });
+}
+
+function positionGhost(ghost, x, y){
+  ghost.style.left = (x + 14) + 'px';
+  ghost.style.top = (y + 14) + 'px';
+}
+
+function updateDropHighlight(x, y){
+  document.querySelectorAll('.row.drop-target').forEach(r => r.classList.remove('drop-target'));
+  const el = document.elementFromPoint(x, y);
+  const rowEl = el && el.closest ? el.closest('.row') : null;
+  if(rowEl && dragState){
+    const targetId = rowEl.dataset.id;
+    if(targetId !== dragState.sourceId && !wouldCreateCycle(dragState.sourceId, targetId)){
+      rowEl.classList.add('drop-target');
+      dragState.targetId = targetId;
+      return;
+    }
+  }
+  dragState.targetId = null;
+}
+
+async function finishDrag(){
+  const sourceId = dragState ? dragState.sourceId : null;
+  const targetId = dragState ? dragState.targetId : null;
+  const moved = dragState ? dragState.moved : false;
+  cleanupDrag();
+
+  if(!sourceId || !targetId || !moved) return; // 沒有拖到有效的人名上，不做任何變更
+  const source = guests().find(x => x.id === sourceId);
+  if(!source) return;
+  source.parentId = targetId;
+  await saveData();
+  render();
+}
+
+function cleanupDrag(){
+  document.querySelectorAll('.row.drop-target').forEach(r => r.classList.remove('drop-target'));
+  if(dragState && dragState.ghost) dragState.ghost.remove();
+  dragState = null;
+}
+
+// --- edit mode / pin ---
+const lockbar = document.getElementById('lockbar');
+document.getElementById('toggleEditBtn').addEventListener('click', () => {
+  lockbar.classList.add('pending');
+  document.getElementById('pinInput').value = '';
+  setPinMsg('');
+  document.getElementById('pinInput').focus();
+});
+document.getElementById('pinCancel').addEventListener('click', () => {
+  lockbar.classList.remove('pending');
+  setPinMsg('');
+});
+document.getElementById('pinSubmit').addEventListener('click', tryUnlock);
+document.getElementById('pinInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') tryUnlock(); });
+
+function tryUnlock(){
+  const val = document.getElementById('pinInput').value;
+  if(val === EDIT_PIN){
+    editing = true;
+    document.body.classList.add('editmode');
+    lockbar.classList.remove('pending');
+    document.getElementById('toggleEditBtn').textContent = '🔓 鎖定';
+    setPinMsg('已解鎖，可編輯');
+    stopAutoRefresh();
+  } else {
+    setPinMsg('密碼錯誤');
+  }
+}
+
+document.getElementById('toggleEditBtn').addEventListener('click', function relock(){
+  if(editing){
+    editing = false;
+    document.body.classList.remove('editmode');
+    this.textContent = '🔒 編輯';
+    setPinMsg('已鎖定');
+    startAutoRefresh();
+  }
+});
+
+document.getElementById('addBtn').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const form = document.getElementById('addForm');
+  const name = form.querySelector('[name="name"]').value.trim();
+  if(!name){ setPinMsg('請輸入姓名'); return; }
+  data.guests.push({id:g(), name});
+  form.querySelector('[name="name"]').value = '';
+  await saveData();
+  render();
+});
+
+function startAutoRefresh(){
+  stopAutoRefresh();
+  refreshTimer = setInterval(() => { if(!editing) loadData(); }, 30000);
+}
+function stopAutoRefresh(){
+  if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; }
+}
+
+loadData().then(startAutoRefresh);
+</script>
+</body>
+</html>
