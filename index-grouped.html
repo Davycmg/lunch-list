@@ -294,10 +294,6 @@
     cursor:pointer;
   }
   .lockbar .togglebtn{ background:none; border-color:transparent; }
-  .lockbar .pinbox{ display:none; gap:6px; align-items:center; }
-  .lockbar.pending .pinbox{ display:flex; }
-  .lockbar.pending .togglebtn{ display:none; }
-  .lockbar input[type="password"]{ width:70px; cursor:text; }
   .status-msg{
     width:100%;
     text-align:center;
@@ -328,18 +324,12 @@
 
   <div class="lockbar" id="lockbar">
     <button class="togglebtn" id="toggleEditBtn">🔒 編輯</button>
-    <div class="pinbox">
-      <input type="password" id="pinInput" placeholder="密碼" inputmode="numeric">
-      <button id="pinSubmit">解鎖</button>
-      <button id="pinCancel">✕</button>
-    </div>
     <span class="status-msg" id="pinMsg"></span>
   </div>
 </div>
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbyHbArS5WkaOLThay9qqJwJkOJpesp9cIUbmP2ScQFjO6ATl3zoiSkDlY2xdqn1gJTOtA/exec';
-const EDIT_PIN = '0000';
 
 const SEED = {
   eventTitle: '午餐會來賓名單',
@@ -358,6 +348,7 @@ let data = null;
 let editing = false;
 let refreshTimer = null;
 const collapsedIds = new Set();
+let collapsedInitialized = false;
 
 async function loadData(){
   try{
@@ -374,6 +365,11 @@ async function loadData(){
       data = SEED;
     }
     setPinMsg('⚠️ 讀取失敗，顯示暫存版本');
+  }
+  if(!collapsedInitialized){
+    // 預設全部收合，只在第一次載入時套用，避免每次自動刷新蓋掉使用者手動展開的狀態
+    (data.guests || []).forEach(gu => { if(gu.parentId) collapsedIds.add(gu.parentId); });
+    collapsedInitialized = true;
   }
   render();
 }
@@ -626,43 +622,13 @@ function cleanupDrag(){
   dragState = null;
 }
 
-// --- edit mode / pin ---
-const lockbar = document.getElementById('lockbar');
-document.getElementById('toggleEditBtn').addEventListener('click', () => {
-  lockbar.classList.add('pending');
-  document.getElementById('pinInput').value = '';
-  setPinMsg('');
-  document.getElementById('pinInput').focus();
-});
-document.getElementById('pinCancel').addEventListener('click', () => {
-  lockbar.classList.remove('pending');
-  setPinMsg('');
-});
-document.getElementById('pinSubmit').addEventListener('click', tryUnlock);
-document.getElementById('pinInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') tryUnlock(); });
-
-function tryUnlock(){
-  const val = document.getElementById('pinInput').value;
-  if(val === EDIT_PIN){
-    editing = true;
-    document.body.classList.add('editmode');
-    lockbar.classList.remove('pending');
-    document.getElementById('toggleEditBtn').textContent = '🔓 鎖定';
-    setPinMsg('已解鎖，可編輯');
-    stopAutoRefresh();
-  } else {
-    setPinMsg('密碼錯誤');
-  }
-}
-
-document.getElementById('toggleEditBtn').addEventListener('click', function relock(){
-  if(editing){
-    editing = false;
-    document.body.classList.remove('editmode');
-    this.textContent = '🔒 編輯';
-    setPinMsg('已鎖定');
-    startAutoRefresh();
-  }
+// --- edit mode ---
+document.getElementById('toggleEditBtn').addEventListener('click', function(){
+  editing = !editing;
+  document.body.classList.toggle('editmode', editing);
+  this.textContent = editing ? '🔓 鎖定' : '🔒 編輯';
+  setPinMsg(editing ? '編輯模式' : '已鎖定');
+  if(editing) stopAutoRefresh(); else startAutoRefresh();
 });
 
 document.getElementById('addBtn').addEventListener('click', async (e) => {
