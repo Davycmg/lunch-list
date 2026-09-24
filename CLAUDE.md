@@ -7,8 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A tiny two-page static site (no build step, no dependencies) published via GitHub Pages:
 
 - `index.html` — original flat guest list. Edit mode is gated by a hardcoded PIN (`EDIT_PIN = '0000'`).
-- `index-grouped.html` — same data, but guests can be nested under each other (drag-and-drop) and
-  reordered. No PIN; clicking "編輯" toggles edit mode directly.
+- `index-grouped.html` — same data, but guests can be grouped under one of up to 8 "小天使"
+  (double-click/right-click a name to assign) and reordered by dragging. No PIN; clicking "編輯"
+  toggles edit mode directly.
 
 Live URLs (served from the `main` branch):
 - https://davycmg.github.io/lunch-list/
@@ -57,15 +58,28 @@ with `executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'`.
 
 ## `index-grouped.html` specifics
 
-- Tree helpers (`guests()`, `childrenOf()`, `roots()`, `isSelfOrAncestor()`, `wouldCreateCycle()`,
-  `moveGuest()`) live together near the top of the script and are the only things that should
-  touch `parentId`/array order — reuse them rather than re-deriving parent/child relationships
-  inline.
-- Drag-and-drop is implemented with Pointer Events (not native HTML5 DnD) so it works on touch too.
-  A single drag gesture branches into three outcomes based on where the pointer is released over the
-  target row (`updateDropHighlight`'s `frac` calculation): top ~30% = insert **before** the target
-  (same parent as target), bottom ~30% = insert **after**, middle = **nest** as the target's child.
-  `wouldCreateCycle` must be checked before any reparenting, for both nest and reorder modes.
+Grouping is strictly **two levels** (leader + members, no deeper nesting) and reordering is a
+completely separate gesture from grouping:
+
+- Tree helpers (`guests()`, `childrenOf()`, `roots()`, `leaders()`, `moveGuest()`, `assignGroup()`)
+  live together near the top of the script and are the only things that should touch
+  `parentId`/array order — reuse them rather than re-deriving parent/child relationships inline.
+- **小天使 ("leaders")**: `leaders()` returns `roots().slice(0, LEADER_COUNT)` (`LEADER_COUNT = 8`).
+  This is purely positional/dynamic — whichever un-grouped roots currently occupy the first 8 slots
+  are the 小天使 options, and reordering the roots changes who that is. A root that later drops out
+  of the top 8 keeps whatever members it already has; it just stops being offered as an assignment
+  target until it's back in the top 8. Current leaders get a "小天使" tag (`.leadertag`) in the UI.
+- **Dragging the "⠿" handle only reorders** — it never changes `parentId`. `updateDropHighlight`
+  only treats a row as a valid drop target when it already shares the same `parentId` as the item
+  being dragged (root-with-root, or member-with-member-of-the-same-leader); top half of the target
+  row = insert before it, bottom half = after. `moveGuest(sourceId, targetId, mode)` is the only
+  place that splices the array to reorder.
+- **Grouping is done via double-click or right-click** on a row, which opens a small popup
+  (`openGroupMenu`/`closeGroupMenu`) listing the current 小天使 as options plus a "放最上層" option
+  (ungroup back to root). Picking one calls `assignGroup(personId, leaderId | null)`, which also
+  promotes that person's own members (if any) back to root first, since nobody can be both someone's
+  member and have members of their own (enforces the two-level rule even when reassigning a leader
+  who already has members).
 - Collapsed/expanded state (`collapsedIds`) is client-side only and intentionally **not** part of
   the saved JSON. It's initialized once per page load (`collapsedInitialized` guard) so periodic
   auto-refresh (`startAutoRefresh`, every 30s while not editing) doesn't keep re-collapsing nodes the
