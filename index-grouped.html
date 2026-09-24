@@ -153,6 +153,8 @@
     background:var(--green-bg);
     outline:1px dashed var(--green);
   }
+  .row.drop-before{ box-shadow: inset 0 2px 0 0 var(--green); }
+  .row.drop-after{ box-shadow: inset 0 -2px 0 0 var(--green); }
   .row .handle{
     display:none;
     flex:none;
@@ -417,6 +419,35 @@ function wouldCreateCycle(sourceId, targetId){
   return isSelfOrAncestor(targetId, sourceId);
 }
 
+// move `sourceId` next to `targetId` in the underlying array (which also determines display order
+// among siblings), and re-parent it according to `mode`: 'before'/'after' targetId as a sibling
+// (same parentId as target), or 'nest' as targetId's child.
+function moveGuest(sourceId, targetId, mode){
+  const list = data.guests;
+  const sourceIdx = list.findIndex(x => x.id === sourceId);
+  if(sourceIdx === -1) return false;
+  const [source] = list.splice(sourceIdx, 1);
+
+  const targetIdx = list.findIndex(x => x.id === targetId);
+  if(targetIdx === -1){
+    list.splice(sourceIdx, 0, source); // put it back, target vanished somehow
+    return false;
+  }
+  const target = list[targetIdx];
+
+  if(mode === 'nest'){
+    source.parentId = target.id;
+    list.splice(targetIdx + 1, 0, source);
+  } else if(mode === 'before'){
+    source.parentId = target.parentId || null;
+    list.splice(targetIdx, 0, source);
+  } else { // 'after'
+    source.parentId = target.parentId || null;
+    list.splice(targetIdx + 1, 0, source);
+  }
+  return true;
+}
+
 // ---------- render ----------
 function render(){
   if(!data) return;
@@ -433,7 +464,7 @@ function render(){
       <span>來賓</span>
       <span class="count mono">${guests().length} 人</span>
     </div>
-    <div class="dragtip">💡 編輯模式下，按住名字左邊的「⠿」把它拖到另一個人名上，就能把它收進那個人底下；要取消，按子項目旁的「⬆」。</div>
+    <div class="dragtip">💡 編輯模式下，按住名字左邊的「⠿」拖曳：放到別人名字<b>中間</b>＝變成子項目；放到名字<b>上緣</b>＝排到它前面；放到<b>下緣</b>＝排到它後面。子項目旁的「⬆」可以取消歸類。</div>
     <div class="tree" id="treeRoot"></div>
   `;
   const treeRoot = sec.querySelector('.tree');
@@ -551,7 +582,8 @@ function setupDragHandle(handle, gu){
       startX: e.clientX,
       startY: e.clientY,
       moved: false,
-      targetId: null
+      targetId: null,
+      mode: null
     };
 
     const onMove = (ev) => {
@@ -586,37 +618,52 @@ function positionGhost(ghost, x, y){
   ghost.style.top = (y + 14) + 'px';
 }
 
+const DROP_ZONE_CLASSES = ['drop-target', 'drop-before', 'drop-after'];
+
 function updateDropHighlight(x, y){
-  document.querySelectorAll('.row.drop-target').forEach(r => r.classList.remove('drop-target'));
+  document.querySelectorAll('.row.' + DROP_ZONE_CLASSES.join(', .row.')).forEach(r => r.classList.remove(...DROP_ZONE_CLASSES));
   const el = document.elementFromPoint(x, y);
   const rowEl = el && el.closest ? el.closest('.row') : null;
   if(rowEl && dragState){
     const targetId = rowEl.dataset.id;
-    if(targetId !== dragState.sourceId && !wouldCreateCycle(dragState.sourceId, targetId)){
-      rowEl.classList.add('drop-target');
-      dragState.targetId = targetId;
-      return;
+    const target = guests().find(g => g.id === targetId);
+    if(target && targetId !== dragState.sourceId){
+      const rect = rowEl.getBoundingClientRect();
+      const frac = rect.height ? (y - rect.top) / rect.height : 0.5;
+      let mode, prospectiveParentId;
+      if(frac < 0.3){ mode = 'before'; prospectiveParentId = target.parentId || null; }
+      else if(frac > 0.7){ mode = 'after'; prospectiveParentId = target.parentId || null; }
+      else { mode = 'nest'; prospectiveParentId = target.id; }
+
+      const cycle = prospectiveParentId ? wouldCreateCycle(dragState.sourceId, prospectiveParentId) : false;
+      if(!cycle){
+        rowEl.classList.add(mode === 'nest' ? 'drop-target' : ('drop-' + mode));
+        dragState.targetId = targetId;
+        dragState.mode = mode;
+        return;
+      }
     }
   }
   dragState.targetId = null;
+  dragState.mode = null;
 }
 
 async function finishDrag(){
   const sourceId = dragState ? dragState.sourceId : null;
   const targetId = dragState ? dragState.targetId : null;
+  const mode = dragState ? dragState.mode : null;
   const moved = dragState ? dragState.moved : false;
   cleanupDrag();
 
-  if(!sourceId || !targetId || !moved) return; // 沒有拖到有效的人名上，不做任何變更
-  const source = guests().find(x => x.id === sourceId);
-  if(!source) return;
-  source.parentId = targetId;
+  if(!sourceId || !targetId || !mode || !moved) return; // 沒有拖到有效的位置，不做任何變更
+  const ok = moveGuest(sourceId, targetId, mode);
+  if(!ok) return;
   await saveData();
   render();
 }
 
 function cleanupDrag(){
-  document.querySelectorAll('.row.drop-target').forEach(r => r.classList.remove('drop-target'));
+  document.querySelectorAll('.row.' + DROP_ZONE_CLASSES.join(', .row.')).forEach(r => r.classList.remove(...DROP_ZONE_CLASSES));
   if(dragState && dragState.ghost) dragState.ghost.remove();
   dragState = null;
 }
