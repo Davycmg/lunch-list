@@ -430,7 +430,7 @@ function setPinMsg(msg){
 }
 
 // ---------- tree helpers ----------
-const LEADER_COUNT = 8;
+const LEADER_COUNT = 7;
 
 function guests(){ return data.guests || []; }
 
@@ -496,7 +496,7 @@ function render(){
       <span>來賓</span>
       <span class="count mono">${guests().length} 人</span>
     </div>
-    <div class="dragtip">💡 編輯模式下：按住「⠿」拖曳只會調整<b>同一層/同一組</b>內的順序（放到名字上緣＝排到前面，下緣＝排到後面）。<b>雙擊或按右鍵</b>人名可以指定他歸屬哪位小天使，或放最上層。目前排最前面、尚未分組的前 8 位會自動被視為小天使選項。</div>
+    <div class="dragtip">💡 編輯模式下：按住「⠿」拖曳只會調整<b>同一層/同一組</b>內的順序（放到名字上緣＝排到前面，下緣＝排到後面）。<b>雙擊或按右鍵</b>人名可以指定他歸屬哪位小天使，或放最上層。目前排最前面、尚未分組的前 7 位會自動被視為小天使選項。</div>
     <div class="tree" id="treeRoot"></div>
   `;
   const treeRoot = sec.querySelector('.tree');

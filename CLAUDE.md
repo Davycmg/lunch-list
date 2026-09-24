@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A tiny two-page static site (no build step, no dependencies) published via GitHub Pages:
 
 - `index.html` — original flat guest list. Edit mode is gated by a hardcoded PIN (`EDIT_PIN = '0000'`).
-- `index-grouped.html` — same data, but guests can be grouped under one of up to 8 "小天使"
+- `index-grouped.html` — same data, but guests can be grouped under one of up to 7 "小天使"
   (double-click/right-click a name to assign) and reordered by dragging. No PIN; clicking "編輯"
   toggles edit mode directly.
 
@@ -64,11 +64,12 @@ completely separate gesture from grouping:
 - Tree helpers (`guests()`, `childrenOf()`, `roots()`, `leaders()`, `moveGuest()`, `assignGroup()`)
   live together near the top of the script and are the only things that should touch
   `parentId`/array order — reuse them rather than re-deriving parent/child relationships inline.
-- **小天使 ("leaders")**: `leaders()` returns `roots().slice(0, LEADER_COUNT)` (`LEADER_COUNT = 8`).
-  This is purely positional/dynamic — whichever un-grouped roots currently occupy the first 8 slots
-  are the 小天使 options, and reordering the roots changes who that is. A root that later drops out
-  of the top 8 keeps whatever members it already has; it just stops being offered as an assignment
-  target until it's back in the top 8. Current leaders get a "小天使" tag (`.leadertag`) in the UI.
+- **小天使 ("leaders")**: `leaders()` returns `roots().slice(0, LEADER_COUNT)` (`LEADER_COUNT = 7`).
+  This is purely positional/dynamic — whichever un-grouped roots currently occupy the first
+  `LEADER_COUNT` slots are the 小天使 options, and reordering the roots changes who that is. A root
+  that later drops out of the top `LEADER_COUNT` keeps whatever members it already has; it just
+  stops being offered as an assignment target until it's back in range. Current leaders get a
+  "小天使" tag (`.leadertag`) in the UI.
 - **Dragging the "⠿" handle only reorders** — it never changes `parentId`. `updateDropHighlight`
   only treats a row as a valid drop target when it already shares the same `parentId` as the item
   being dragged (root-with-root, or member-with-member-of-the-same-leader); top half of the target
