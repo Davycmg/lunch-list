@@ -613,7 +613,7 @@ function openGroupMenu(gu, x, y){
   } else {
     options.forEach(l => {
       const btn = document.createElement('button');
-      btn.textContent = '歸屬「' + l.name + '」';
+      btn.textContent = '小天使「' + l.name + '」';
       btn.addEventListener('click', async () => {
         assignGroup(gu.id, l.id);
         closeGroupMenu();
