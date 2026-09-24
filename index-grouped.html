@@ -444,7 +444,7 @@ function roots(){
   return list.filter(g => !g.parentId || !list.some(x => x.id === g.parentId));
 }
 
-// the current 小組長 options: whichever roots occupy the first LEADER_COUNT positions right now.
+// the current 小天使 options: whichever roots occupy the first LEADER_COUNT positions right now.
 // This is purely positional/dynamic (per the app's rule), not a stored flag — reordering the roots
 // changes who counts as a leader. A root that later drops out of the top N keeps whatever members
 // it already has; it just stops being offered as an assignment target until it's back in the top N.
@@ -496,7 +496,7 @@ function render(){
       <span>來賓</span>
       <span class="count mono">${guests().length} 人</span>
     </div>
-    <div class="dragtip">💡 編輯模式下：按住「⠿」拖曳只會調整<b>同一層/同一組</b>內的順序（放到名字上緣＝排到前面，下緣＝排到後面）。<b>雙擊或按右鍵</b>人名可以指定他歸屬哪位小組長，或取消分組。目前排最前面、尚未分組的前 8 位會自動被視為小組長選項。</div>
+    <div class="dragtip">💡 編輯模式下：按住「⠿」拖曳只會調整<b>同一層/同一組</b>內的順序（放到名字上緣＝排到前面，下緣＝排到後面）。<b>雙擊或按右鍵</b>人名可以指定他歸屬哪位小天使，或放最上層。目前排最前面、尚未分組的前 8 位會自動被視為小天使選項。</div>
     <div class="tree" id="treeRoot"></div>
   `;
   const treeRoot = sec.querySelector('.tree');
@@ -545,7 +545,7 @@ function buildRow(gu, depth){
     <span class="handle">⠿</span>
     <button class="expand" style="visibility:${hasKids ? 'visible' : 'hidden'}">${collapsedIds.has(gu.id) ? '▸' : '▾'}</button>
     <div class="name" contenteditable="true" spellcheck="false"></div>
-    ${isLeader ? '<span class="leadertag mono">小組長</span>' : ''}
+    ${isLeader ? '<span class="leadertag mono">小天使</span>' : ''}
     ${hasKids ? `<span class="childcount mono">(${kids.length})</span>` : ''}
     <button class="rm" title="刪除">✕</button>
   `;
@@ -608,7 +608,7 @@ function openGroupMenu(gu, x, y){
   if(options.length === 0){
     const empty = document.createElement('div');
     empty.className = 'group-menu-empty';
-    empty.textContent = '目前沒有可指定的小組長';
+    empty.textContent = '目前沒有可指定的小天使';
     menu.appendChild(empty);
   } else {
     options.forEach(l => {
@@ -630,7 +630,7 @@ function openGroupMenu(gu, x, y){
 
   const ungroupBtn = document.createElement('button');
   ungroupBtn.className = 'group-menu-ungroup';
-  ungroupBtn.textContent = '取消分組';
+  ungroupBtn.textContent = '放最上層';
   ungroupBtn.addEventListener('click', async () => {
     assignGroup(gu.id, null);
     closeGroupMenu();
