@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A tiny two-page static site (no build step, no dependencies) published via GitHub Pages:
 
 - `index.html` — original flat guest list. Edit mode is gated by a hardcoded PIN (`EDIT_PIN = '0000'`).
-- `index-grouped.html` — same data, but guests can be grouped under one of up to 7 "小天使"
+- `index-grouped.html` — same data, but guests can be grouped under one of up to 6 "小天使"
   (double-click/right-click a name to assign) and reordered by dragging. No PIN; clicking "編輯"
   toggles edit mode directly.
 
@@ -64,7 +64,7 @@ completely separate gesture from grouping:
 - Tree helpers (`guests()`, `childrenOf()`, `roots()`, `leaders()`, `moveGuest()`, `assignGroup()`)
   live together near the top of the script and are the only things that should touch
   `parentId`/array order — reuse them rather than re-deriving parent/child relationships inline.
-- **小天使 ("leaders")**: `leaders()` returns `roots().slice(0, LEADER_COUNT)` (`LEADER_COUNT = 7`).
+- **小天使 ("leaders")**: `leaders()` returns `roots().slice(0, LEADER_COUNT)` (`LEADER_COUNT = 6`).
   This is purely positional/dynamic — whichever un-grouped roots currently occupy the first
   `LEADER_COUNT` slots are the 小天使 options, and reordering the roots changes who that is. A root
   that later drops out of the top `LEADER_COUNT` keeps whatever members it already has; it just
